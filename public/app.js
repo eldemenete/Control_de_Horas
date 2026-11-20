@@ -2,14 +2,11 @@
   const state = {
     goalHours: 360,
     totalMinutes: 0,
-    activeSession: null,
     entries: [],
     storageMode: 'local-dev',
-    manualMode: 'range',
     pin: localStorage.getItem('practica_app_pin') || '',
   };
 
-  let timerInterval = null;
   let toastTimeout = null;
 
   // --- Referencias DOM ---
@@ -28,34 +25,27 @@
     remainingDisplay: document.getElementById('remaining-display'),
     daysDisplay: document.getElementById('days-display'),
 
-    timerStatusPill: document.getElementById('timer-status-pill'),
-    clockIdleView: document.getElementById('clock-idle-view'),
-    clockActiveView: document.getElementById('clock-active-view'),
-    clockInNote: document.getElementById('clockin-note'),
-    btnClockIn: document.getElementById('btn-clock-in'),
-    liveTimer: document.getElementById('live-timer'),
-    startedAtLabel: document.getElementById('started-at-label'),
-    clockOutBreak: document.getElementById('clockout-break'),
-    clockOutNote: document.getElementById('clockout-note'),
-    btnClockOut: document.getElementById('btn-clock-out'),
-    btnCancelClock: document.getElementById('btn-cancel-clock'),
+    entryForm: document.getElementById('entry-form'),
+    entryDate: document.getElementById('entry-date'),
+    entryStart: document.getElementById('entry-start'),
+    entryEnd: document.getElementById('entry-end'),
+    entryBreak: document.getElementById('entry-break'),
+    entryPreview: document.getElementById('entry-preview'),
+    entryNote: document.getElementById('entry-note'),
+    btnNowStart: document.getElementById('btn-now-start'),
+    btnNowEnd: document.getElementById('btn-now-end'),
+    btnSaveEntry: document.getElementById('btn-save-entry'),
+
+    directForm: document.getElementById('direct-form'),
+    directDate: document.getElementById('direct-date'),
+    directHours: document.getElementById('direct-hours'),
+    directMinutes: document.getElementById('direct-minutes'),
+    directNote: document.getElementById('direct-note'),
 
     recentList: document.getElementById('recent-list'),
     historyList: document.getElementById('history-list'),
     historySummary: document.getElementById('history-summary'),
     btnExportCsv: document.getElementById('btn-export-csv'),
-
-    manualForm: document.getElementById('manual-form'),
-    manualDate: document.getElementById('manual-date'),
-    manualStart: document.getElementById('manual-start'),
-    manualEnd: document.getElementById('manual-end'),
-    manualBreak: document.getElementById('manual-break'),
-    manualPreview: document.getElementById('manual-preview'),
-    manualHours: document.getElementById('manual-hours'),
-    manualMinutes: document.getElementById('manual-minutes'),
-    manualNote: document.getElementById('manual-note'),
-    modeRangeFields: document.getElementById('mode-range-fields'),
-    modeDurationFields: document.getElementById('mode-duration-fields'),
 
     editModal: document.getElementById('edit-modal'),
     editForm: document.getElementById('edit-form'),
@@ -96,6 +86,13 @@
     const m = String(now.getMonth() + 1).padStart(2, '0');
     const d = String(now.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+  }
+
+  function getNowHHMM() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
   }
 
   function showToast(msg) {
@@ -173,59 +170,13 @@
     }
   }
 
-  function updateLiveClockTick() {
-    if (!state.activeSession) return;
-    const startedMs = new Date(state.activeSession.startedAt).getTime();
-    const diffSec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
-    const h = Math.floor(diffSec / 3600);
-    const m = Math.floor((diffSec % 3600) / 60);
-    const s = diffSec % 60;
-    el.liveTimer.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(
-      2,
-      '0'
-    )}:${String(s).padStart(2, '0')}`;
-  }
-
-  function renderTimer() {
-    clearInterval(timerInterval);
-
-    if (state.activeSession) {
-      el.timerStatusPill.textContent = 'En curso';
-      el.timerStatusPill.className = 'status-pill running';
-      el.clockIdleView.classList.add('hidden');
-      el.clockActiveView.classList.remove('hidden');
-
-      const startedDate = new Date(state.activeSession.startedAt);
-      const timeStr = startedDate.toLocaleTimeString('es-CL', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      el.startedAtLabel.textContent = `Iniciada a las ${timeStr}`;
-
-      if (!el.clockOutNote.value && state.activeSession.note) {
-        el.clockOutNote.value = state.activeSession.note;
-      }
-
-      updateLiveClockTick();
-      timerInterval = setInterval(updateLiveClockTick, 1000);
-    } else {
-      el.timerStatusPill.textContent = 'Inactivo';
-      el.timerStatusPill.className = 'status-pill idle';
-      el.clockIdleView.classList.remove('hidden');
-      el.clockActiveView.classList.add('hidden');
-      el.clockOutNote.value = '';
-      el.clockOutBreak.value = '0';
-    }
-  }
-
   function createEntryCard(entry, showActions) {
     const div = document.createElement('div');
     div.className = 'entry-item';
 
     const rangeText =
-      entry.startTime && entry.endTime ? `${entry.startTime} - ${entry.endTime}` : 'Duración directa';
+      entry.startTime && entry.endTime ? `${entry.startTime} - ${entry.endTime}` : 'Horas directas';
     const breakText = entry.breakMinutes > 0 ? ` · Colación ${entry.breakMinutes}m` : '';
-    const sourceText = entry.source === 'timer' ? 'Reloj' : 'Manual';
 
     div.innerHTML = `
       <div class="entry-top">
@@ -234,7 +185,6 @@
       </div>
       <div class="entry-meta">
         <span>${rangeText}${breakText}</span>
-        <span>· ${sourceText}</span>
       </div>
       ${entry.note ? `<div class="entry-note"></div>` : ''}
     `;
@@ -265,7 +215,6 @@
   }
 
   function renderLists() {
-    // Últimos 3 en inicio
     el.recentList.innerHTML = '';
     const recent = state.entries.slice(0, 3);
     if (!recent.length) {
@@ -275,7 +224,6 @@
       recent.forEach((e) => el.recentList.appendChild(createEntryCard(e, false)));
     }
 
-    // Historial completo
     el.historyList.innerHTML = '';
     el.historySummary.textContent = `${state.entries.length} jornada(s) · Total acumulado: ${formatMinutes(
       state.totalMinutes
@@ -294,13 +242,11 @@
       const data = await apiFetch('/api/state');
       state.goalHours = data.goalHours;
       state.totalMinutes = data.totalMinutes;
-      state.activeSession = data.activeSession;
       state.entries = data.entries;
       state.storageMode = data.storageMode;
 
       el.pinScreen.classList.add('hidden');
       renderProgress();
-      renderTimer();
       renderLists();
     } catch (err) {
       if (err.message !== 'PIN_REQUIRED' && !silent) {
@@ -309,62 +255,13 @@
     }
   }
 
-  // --- Eventos de Fichaje ---
-  el.btnClockIn.addEventListener('click', async () => {
-    el.btnClockIn.disabled = true;
-    try {
-      await apiFetch('/api/clock-in', {
-        method: 'POST',
-        body: JSON.stringify({ note: el.clockInNote.value }),
-      });
-      el.clockInNote.value = '';
-      showToast('Jornada iniciada');
-      await loadState(true);
-    } catch (err) {
-      showToast(err.message);
-    } finally {
-      el.btnClockIn.disabled = false;
-    }
-  });
-
-  el.btnClockOut.addEventListener('click', async () => {
-    el.btnClockOut.disabled = true;
-    try {
-      await apiFetch('/api/clock-out', {
-        method: 'POST',
-        body: JSON.stringify({
-          breakMinutes: Number(el.clockOutBreak.value) || 0,
-          note: el.clockOutNote.value,
-          tzOffsetMinutes: new Date().getTimezoneOffset(),
-        }),
-      });
-      showToast('Jornada guardada en la nube');
-      await loadState(true);
-    } catch (err) {
-      showToast(err.message);
-    } finally {
-      el.btnClockOut.disabled = false;
-    }
-  });
-
-  el.btnCancelClock.addEventListener('click', async () => {
-    if (!confirm('¿Cancelar la jornada en curso sin guardar las horas?')) return;
-    try {
-      await apiFetch('/api/clock-in', { method: 'DELETE' });
-      showToast('Jornada cancelada');
-      await loadState(true);
-    } catch (err) {
-      showToast(err.message);
-    }
-  });
-
-  // --- Registro Manual ---
-  function updateManualPreview() {
-    const start = el.manualStart.value;
-    const end = el.manualEnd.value;
-    const brk = Math.max(0, Number(el.manualBreak.value) || 0);
+  // --- Registro principal por horario escrito ---
+  function updateEntryPreview() {
+    const start = el.entryStart.value;
+    const end = el.entryEnd.value;
+    const brk = Math.max(0, Number(el.entryBreak.value) || 0);
     if (!start || !end) {
-      el.manualPreview.innerHTML = 'Completa hora de entrada y salida.';
+      el.entryPreview.innerHTML = 'Completa hora de entrada y salida.';
       return;
     }
     const [sh, sm] = start.split(':').map(Number);
@@ -373,55 +270,66 @@
     if (diff <= 0) diff += 24 * 60;
     const net = diff - brk;
     if (net <= 0) {
-      el.manualPreview.innerHTML = 'La colación supera la duración de la jornada.';
+      el.entryPreview.innerHTML = 'La colación supera la duración de la jornada.';
     } else {
-      el.manualPreview.innerHTML = `Total calculado: <strong>${formatMinutes(net)}</strong>`;
+      el.entryPreview.innerHTML = `Total a sumar: <strong>${formatMinutes(net)}</strong>`;
     }
   }
 
-  document.querySelectorAll('.seg-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.seg-btn').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.manualMode = btn.dataset.mode;
-      if (state.manualMode === 'range') {
-        el.modeRangeFields.classList.remove('hidden');
-        el.modeDurationFields.classList.add('hidden');
-      } else {
-        el.modeRangeFields.classList.add('hidden');
-        el.modeDurationFields.classList.remove('hidden');
-      }
-    });
+  [el.entryStart, el.entryEnd, el.entryBreak].forEach((input) => {
+    input.addEventListener('input', updateEntryPreview);
   });
 
-  [el.manualStart, el.manualEnd, el.manualBreak].forEach((input) => {
-    input.addEventListener('input', updateManualPreview);
+  el.btnNowStart.addEventListener('click', () => {
+    el.entryStart.value = getNowHHMM();
+    updateEntryPreview();
   });
 
-  el.manualForm.addEventListener('submit', async (ev) => {
+  el.btnNowEnd.addEventListener('click', () => {
+    el.entryEnd.value = getNowHHMM();
+    updateEntryPreview();
+  });
+
+  el.entryForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const payload = {
-      entryDate: el.manualDate.value,
-      note: el.manualNote.value,
-    };
-
-    if (state.manualMode === 'range') {
-      payload.startTime = el.manualStart.value;
-      payload.endTime = el.manualEnd.value;
-      payload.breakMinutes = Number(el.manualBreak.value) || 0;
-    } else {
-      const h = Number(el.manualHours.value) || 0;
-      const m = Number(el.manualMinutes.value) || 0;
-      payload.durationMinutes = h * 60 + m;
-    }
-
+    el.btnSaveEntry.disabled = true;
     try {
       await apiFetch('/api/entries', {
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          entryDate: el.entryDate.value,
+          startTime: el.entryStart.value,
+          endTime: el.entryEnd.value,
+          breakMinutes: Number(el.entryBreak.value) || 0,
+          note: el.entryNote.value,
+        }),
       });
-      el.manualNote.value = '';
-      showToast('Registro manual guardado');
+      el.entryNote.value = '';
+      showToast('Jornada guardada en la nube');
+      await loadState(true);
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      el.btnSaveEntry.disabled = false;
+    }
+  });
+
+  // --- Registro de horas directas ---
+  el.directForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const h = Number(el.directHours.value) || 0;
+    const m = Number(el.directMinutes.value) || 0;
+    try {
+      await apiFetch('/api/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          entryDate: el.directDate.value,
+          durationMinutes: h * 60 + m,
+          note: el.directNote.value,
+        }),
+      });
+      el.directNote.value = '';
+      showToast('Horas guardadas en la nube');
       await loadState(true);
       switchTab('home');
     } catch (err) {
@@ -487,7 +395,7 @@
       return;
     }
     const rows = [
-      ['Fecha', 'Entrada', 'Salida', 'Colacion (min)', 'Duracion (min)', 'Horas', 'Tipo', 'Nota'],
+      ['Fecha', 'Entrada', 'Salida', 'Colacion (min)', 'Duracion (min)', 'Horas', 'Nota'],
       ...state.entries.map((e) => [
         e.entryDate,
         e.startTime || '',
@@ -495,7 +403,6 @@
         e.breakMinutes,
         e.durationMinutes,
         (e.durationMinutes / 60).toFixed(2),
-        e.source,
         `"${(e.note || '').replace(/"/g, '""')}"`,
       ]),
     ];
@@ -550,7 +457,9 @@
   }
 
   // Inicialización
-  el.manualDate.value = getTodayLocalIso();
-  updateManualPreview();
+  const today = getTodayLocalIso();
+  el.entryDate.value = today;
+  el.directDate.value = today;
+  updateEntryPreview();
   loadState();
 })();

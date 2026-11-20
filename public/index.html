@@ -48,7 +48,7 @@
     </header>
 
     <main class="app-main">
-      <!-- PESTAÑA 1: INICIO (Progreso + Fichar en vivo) -->
+      <!-- PESTAÑA 1: INICIO (Progreso + Registrar jornada escrita) -->
       <section id="tab-home" class="tab-panel active">
         <!-- Tarjeta de Progreso -->
         <article class="card progress-card">
@@ -80,68 +80,65 @@
           </div>
         </article>
 
-        <!-- Tarjeta de Fichar en vivo -->
-        <article class="card timer-card">
+        <!-- Tarjeta de Registrar Jornada (hora escrita) -->
+        <article class="card">
           <div class="card-title-row">
-            <h2>Fichar jornada</h2>
-            <span id="timer-status-pill" class="status-pill idle">Inactivo</span>
+            <h2>Registrar jornada</h2>
           </div>
 
-          <!-- Estado: sin jornada activa -->
-          <div id="clock-idle-view">
-            <p class="helper-text">
-              Inicia el reloj al entrar a tu práctica. Queda guardado en la nube aunque cierres la app.
-            </p>
+          <form id="entry-form">
             <div class="field">
-              <label for="clockin-note">Nota rápida (opcional)</label>
-              <input
-                id="clockin-note"
-                type="text"
-                maxlength="300"
-                placeholder="Ej: Desarrollo módulo API, soporte técnico..."
-              />
+              <label for="entry-date">Fecha</label>
+              <input id="entry-date" type="date" required />
             </div>
-            <button id="btn-clock-in" class="btn btn-success btn-xl btn-full">
-              ▶ Iniciar jornada
-            </button>
-          </div>
 
-          <!-- Estado: jornada en curso -->
-          <div id="clock-active-view" class="hidden">
-            <div class="live-clock" id="live-timer">00:00:00</div>
-            <div class="started-at-text" id="started-at-label">Iniciada a las --:--</div>
-
-            <div class="form-row">
+            <div class="form-row two-cols">
               <div class="field">
-                <label for="clockout-break">Colación / pausa (min)</label>
-                <input
-                  id="clockout-break"
-                  type="number"
-                  min="0"
-                  max="480"
-                  value="0"
-                  inputmode="numeric"
-                />
+                <div class="label-row">
+                  <label for="entry-start">Hora entrada</label>
+                  <button type="button" class="mini-btn" id="btn-now-start">Ahora</button>
+                </div>
+                <input id="entry-start" type="time" value="09:00" required />
+              </div>
+              <div class="field">
+                <div class="label-row">
+                  <label for="entry-end">Hora salida</label>
+                  <button type="button" class="mini-btn" id="btn-now-end">Ahora</button>
+                </div>
+                <input id="entry-end" type="time" value="18:00" required />
               </div>
             </div>
 
             <div class="field">
-              <label for="clockout-note">Actividad realizada (opcional)</label>
+              <label for="entry-break">Colación / descanso (minutos)</label>
               <input
-                id="clockout-note"
-                type="text"
-                maxlength="300"
-                placeholder="¿Qué trabajaste hoy?"
+                id="entry-break"
+                type="number"
+                min="0"
+                max="480"
+                value="60"
+                inputmode="numeric"
               />
             </div>
 
-            <button id="btn-clock-out" class="btn btn-danger btn-xl btn-full">
-              ■ Finalizar y guardar horas
+            <div class="calc-preview" id="entry-preview">
+              Total a sumar: <strong>8h 00m</strong>
+            </div>
+
+            <div class="field">
+              <label for="entry-note">Actividad / nota (opcional)</label>
+              <input
+                id="entry-note"
+                type="text"
+                maxlength="300"
+                placeholder="Ej: Desarrollo web, soporte técnico..."
+              />
+            </div>
+
+            <button type="submit" id="btn-save-entry" class="btn btn-primary btn-xl btn-full">
+              + Guardar jornada
             </button>
-            <button id="btn-cancel-clock" class="btn btn-ghost btn-full">
-              Cancelar sin guardar
-            </button>
-          </div>
+          </form>
         </article>
 
         <!-- Últimos registros rápidos -->
@@ -154,97 +151,59 @@
         </article>
       </section>
 
-      <!-- PESTAÑA 2: REGISTRO MANUAL -->
+      <!-- PESTAÑA 2: SUMAR HORAS DIRECTAS -->
       <section id="tab-manual" class="tab-panel">
         <article class="card">
-          <h2>Agregar horas manualmente</h2>
+          <h2>Sumar horas directas</h2>
           <p class="helper-text">
-            Úsalo para cargar días anteriores o jornadas donde olvidaste fichar.
+            Úsalo si prefieres ingresar una cantidad fija de horas (por ejemplo, horas acumuladas de días anteriores).
           </p>
 
-          <div class="segmented" role="tablist">
-            <button type="button" class="seg-btn active" data-mode="range">
-              Entrada y salida
-            </button>
-            <button type="button" class="seg-btn" data-mode="duration">
-              Horas directas
-            </button>
-          </div>
-
-          <form id="manual-form">
+          <form id="direct-form">
             <div class="field">
-              <label for="manual-date">Fecha</label>
-              <input id="manual-date" type="date" required />
+              <label for="direct-date">Fecha</label>
+              <input id="direct-date" type="date" required />
             </div>
 
-            <!-- Modo rango horario -->
-            <div id="mode-range-fields">
-              <div class="form-row two-cols">
-                <div class="field">
-                  <label for="manual-start">Hora entrada</label>
-                  <input id="manual-start" type="time" value="09:00" />
-                </div>
-                <div class="field">
-                  <label for="manual-end">Hora salida</label>
-                  <input id="manual-end" type="time" value="18:00" />
-                </div>
-              </div>
+            <div class="form-row two-cols">
               <div class="field">
-                <label for="manual-break">Colación / descanso (minutos)</label>
+                <label for="direct-hours">Horas</label>
                 <input
-                  id="manual-break"
+                  id="direct-hours"
                   type="number"
                   min="0"
-                  max="480"
-                  value="60"
+                  max="360"
+                  value="8"
                   inputmode="numeric"
+                  required
                 />
               </div>
-              <div class="calc-preview" id="manual-preview">
-                Total calculado: <strong>8h 00m</strong>
-              </div>
-            </div>
-
-            <!-- Modo duración directa -->
-            <div id="mode-duration-fields" class="hidden">
-              <div class="form-row two-cols">
-                <div class="field">
-                  <label for="manual-hours">Horas</label>
-                  <input
-                    id="manual-hours"
-                    type="number"
-                    min="0"
-                    max="24"
-                    value="8"
-                    inputmode="numeric"
-                  />
-                </div>
-                <div class="field">
-                  <label for="manual-minutes">Minutos</label>
-                  <input
-                    id="manual-minutes"
-                    type="number"
-                    min="0"
-                    max="59"
-                    value="0"
-                    inputmode="numeric"
-                  />
-                </div>
+              <div class="field">
+                <label for="direct-minutes">Minutos</label>
+                <input
+                  id="direct-minutes"
+                  type="number"
+                  min="0"
+                  max="59"
+                  value="0"
+                  inputmode="numeric"
+                  required
+                />
               </div>
             </div>
 
             <div class="field">
-              <label for="manual-note">Descripción / notas (opcional)</label>
+              <label for="direct-note">Descripción / notas (opcional)</label>
               <input
-                id="manual-note"
+                id="direct-note"
                 type="text"
                 maxlength="300"
-                placeholder="Ej: Pruebas en servidor, documentación..."
+                placeholder="Ej: Horas acumuladas semana 1..."
               />
             </div>
 
             <button type="submit" class="btn btn-primary btn-xl btn-full">
-              + Guardar registro
+              + Guardar horas
             </button>
           </form>
         </article>
@@ -268,12 +227,12 @@
     <!-- Navegación inferior estilo app móvil -->
     <nav class="bottom-nav" aria-label="Navegación principal">
       <button class="nav-item active" data-tab="home">
-        <span class="nav-icon">⏱</span>
-        <span class="nav-label">Inicio</span>
+        <span class="nav-icon">✎</span>
+        <span class="nav-label">Registrar</span>
       </button>
       <button class="nav-item" data-tab="manual">
         <span class="nav-icon">＋</span>
-        <span class="nav-label">Manual</span>
+        <span class="nav-label">Horas</span>
       </button>
       <button class="nav-item" data-tab="history">
         <span class="nav-icon">☰</span>
@@ -298,7 +257,7 @@
         <div class="form-row two-cols">
           <div class="field">
             <label for="edit-hours">Horas totales</label>
-            <input id="edit-hours" type="number" min="0" max="24" required inputmode="numeric" />
+            <input id="edit-hours" type="number" min="0" max="360" required inputmode="numeric" />
           </div>
           <div class="field">
             <label for="edit-minutes">Minutos</label>
