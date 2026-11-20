@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1120" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Práctica 360h" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <title>Control de Horas · Práctica Profesional</title>
+</head>
+<body>
+  <!-- Pantalla de PIN (solo visible si el servidor tiene APP_PIN configurado) -->
+  <div id="pin-screen" class="pin-overlay hidden">
+    <div class="pin-card">
+      <div class="pin-icon">🔒</div>
+      <h2>Acceso protegido</h2>
+      <p>Ingresa tu PIN para acceder a tu registro de horas en la nube.</p>
+      <form id="pin-form">
+        <input
+          id="pin-input"
+          type="password"
+          inputmode="numeric"
+          placeholder="Ingresa tu PIN"
+          autocomplete="current-password"
+          required
+        />
+        <button type="submit" class="btn btn-primary btn-full">Entrar</button>
+      </form>
+      <p id="pin-error" class="error-text hidden"></p>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <!-- Cabecera -->
+    <header class="app-header">
+      <div>
+        <h1>Mi Práctica</h1>
+        <span id="storage-badge" class="badge">Conectando...</span>
+      </div>
+      <button id="btn-refresh" class="icon-btn" title="Sincronizar" aria-label="Sincronizar">
+        ↻
+      </button>
+    </header>
+
+    <main class="app-main">
+      <!-- PESTAÑA 1: INICIO (Progreso + Fichar en vivo) -->
+      <section id="tab-home" class="tab-panel active">
+        <!-- Tarjeta de Progreso -->
+        <article class="card progress-card">
+          <div class="progress-header">
+            <div>
+              <span class="label">Progreso total</span>
+              <div class="big-hours" id="total-hours-display">0h 00m</div>
+            </div>
+            <div class="percent-pill" id="percent-display">0%</div>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-bar" style="width: 0%"></div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-box">
+              <span class="stat-label">Meta</span>
+              <span class="stat-value" id="goal-display">360h</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">Faltan</span>
+              <span class="stat-value" id="remaining-display">360h 00m</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">Jornadas</span>
+              <span class="stat-value" id="days-display">0</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Tarjeta de Fichar en vivo -->
+        <article class="card timer-card">
+          <div class="card-title-row">
+            <h2>Fichar jornada</h2>
+            <span id="timer-status-pill" class="status-pill idle">Inactivo</span>
+          </div>
+
+          <!-- Estado: sin jornada activa -->
+          <div id="clock-idle-view">
+            <p class="helper-text">
+              Inicia el reloj al entrar a tu práctica. Queda guardado en la nube aunque cierres la app.
+            </p>
+            <div class="field">
+              <label for="clockin-note">Nota rápida (opcional)</label>
+              <input
+                id="clockin-note"
+                type="text"
+                maxlength="300"
+                placeholder="Ej: Desarrollo módulo API, soporte técnico..."
+              />
+            </div>
+            <button id="btn-clock-in" class="btn btn-success btn-xl btn-full">
+              ▶ Iniciar jornada
+            </button>
+          </div>
+
+          <!-- Estado: jornada en curso -->
+          <div id="clock-active-view" class="hidden">
+            <div class="live-clock" id="live-timer">00:00:00</div>
+            <div class="started-at-text" id="started-at-label">Iniciada a las --:--</div>
+
+            <div class="form-row">
+              <div class="field">
+                <label for="clockout-break">Colación / pausa (min)</label>
+                <input
+                  id="clockout-break"
+                  type="number"
+                  min="0"
+                  max="480"
+                  value="0"
+                  inputmode="numeric"
+                />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="clockout-note">Actividad realizada (opcional)</label>
+              <input
+                id="clockout-note"
+                type="text"
+                maxlength="300"
+                placeholder="¿Qué trabajaste hoy?"
+              />
+            </div>
+
+            <button id="btn-clock-out" class="btn btn-danger btn-xl btn-full">
+              ■ Finalizar y guardar horas
+            </button>
+            <button id="btn-cancel-clock" class="btn btn-ghost btn-full">
+              Cancelar sin guardar
+            </button>
+          </div>
+        </article>
+
+        <!-- Últimos registros rápidos -->
+        <article class="card">
+          <div class="card-title-row">
+            <h2>Últimas jornadas</h2>
+            <button class="link-btn" data-go-tab="history">Ver todas →</button>
+          </div>
+          <div id="recent-list" class="entries-list"></div>
+        </article>
+      </section>
+
+      <!-- PESTAÑA 2: REGISTRO MANUAL -->
+      <section id="tab-manual" class="tab-panel">
+        <article class="card">
+          <h2>Agregar horas manualmente</h2>
+          <p class="helper-text">
+            Úsalo para cargar días anteriores o jornadas donde olvidaste fichar.
+          </p>
+
+          <div class="segmented" role="tablist">
+            <button type="button" class="seg-btn active" data-mode="range">
+              Entrada y salida
+            </button>
+            <button type="button" class="seg-btn" data-mode="duration">
+              Horas directas
+            </button>
+          </div>
+
+          <form id="manual-form">
+            <div class="field">
+              <label for="manual-date">Fecha</label>
+              <input id="manual-date" type="date" required />
+            </div>
+
+            <!-- Modo rango horario -->
+            <div id="mode-range-fields">
+              <div class="form-row two-cols">
+                <div class="field">
+                  <label for="manual-start">Hora entrada</label>
+                  <input id="manual-start" type="time" value="09:00" />
+                </div>
+                <div class="field">
+                  <label for="manual-end">Hora salida</label>
+                  <input id="manual-end" type="time" value="18:00" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="manual-break">Colación / descanso (minutos)</label>
+                <input
+                  id="manual-break"
+                  type="number"
+                  min="0"
+                  max="480"
+                  value="60"
+                  inputmode="numeric"
+                />
+              </div>
+              <div class="calc-preview" id="manual-preview">
+                Total calculado: <strong>8h 00m</strong>
+              </div>
+            </div>
+
+            <!-- Modo duración directa -->
+            <div id="mode-duration-fields" class="hidden">
+              <div class="form-row two-cols">
+                <div class="field">
+                  <label for="manual-hours">Horas</label>
+                  <input
+                    id="manual-hours"
+                    type="number"
+                    min="0"
+                    max="24"
+                    value="8"
+                    inputmode="numeric"
+                  />
+                </div>
+                <div class="field">
+                  <label for="manual-minutes">Minutos</label>
+                  <input
+                    id="manual-minutes"
+                    type="number"
+                    min="0"
+                    max="59"
+                    value="0"
+                    inputmode="numeric"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="manual-note">Descripción / notas (opcional)</label>
+              <input
+                id="manual-note"
+                type="text"
+                maxlength="300"
+                placeholder="Ej: Pruebas en servidor, documentación..."
+              />
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-xl btn-full">
+              + Guardar registro
+            </button>
+          </form>
+        </article>
+      </section>
+
+      <!-- PESTAÑA 3: HISTORIAL -->
+      <section id="tab-history" class="tab-panel">
+        <article class="card">
+          <div class="card-title-row">
+            <h2>Historial de jornadas</h2>
+            <button id="btn-export-csv" class="btn btn-secondary btn-sm">
+              Exportar CSV
+            </button>
+          </div>
+          <div class="history-summary" id="history-summary"></div>
+          <div id="history-list" class="entries-list"></div>
+        </article>
+      </section>
+    </main>
+
+    <!-- Navegación inferior estilo app móvil -->
+    <nav class="bottom-nav" aria-label="Navegación principal">
+      <button class="nav-item active" data-tab="home">
+        <span class="nav-icon">⏱</span>
+        <span class="nav-label">Inicio</span>
+      </button>
+      <button class="nav-item" data-tab="manual">
+        <span class="nav-icon">＋</span>
+        <span class="nav-label">Manual</span>
+      </button>
+      <button class="nav-item" data-tab="history">
+        <span class="nav-icon">☰</span>
+        <span class="nav-label">Historial</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Modal para editar registro -->
+  <div id="edit-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="card-title-row">
+        <h2>Editar jornada</h2>
+        <button id="btn-close-modal" class="icon-btn" aria-label="Cerrar">✕</button>
+      </div>
+      <form id="edit-form">
+        <input type="hidden" id="edit-id" />
+        <div class="field">
+          <label for="edit-date">Fecha</label>
+          <input id="edit-date" type="date" required />
+        </div>
+        <div class="form-row two-cols">
+          <div class="field">
+            <label for="edit-hours">Horas totales</label>
+            <input id="edit-hours" type="number" min="0" max="24" required inputmode="numeric" />
+          </div>
+          <div class="field">
+            <label for="edit-minutes">Minutos</label>
+            <input id="edit-minutes" type="number" min="0" max="59" required inputmode="numeric" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="edit-note">Nota</label>
+          <input id="edit-note" type="text" maxlength="300" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast de notificaciones -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
