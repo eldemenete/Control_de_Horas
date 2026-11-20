@@ -1,4 +1,4 @@
-const CACHE_NAME = 'practica-360-v3';
+const CACHE_NAME = 'practica-360-v4';
 const STATIC_ASSETS = ['/', '/index.html', '/styles.css', '/app.js', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', (event) => {

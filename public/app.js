@@ -4,10 +4,12 @@
     totalMinutes: 0,
     entries: [],
     storageMode: 'local-dev',
+    addMode: 'schedule',
     pin: localStorage.getItem('practica_app_pin') || '',
   };
 
   let toastTimeout = null;
+  const RING_CIRCUMFERENCE = 2 * Math.PI * 92;
 
   // --- Referencias DOM ---
   const el = {
@@ -26,6 +28,11 @@
     remainingDisplay: document.getElementById('remaining-display'),
     daysDisplay: document.getElementById('days-display'),
 
+    weekHoursDisplay: document.getElementById('week-hours-display'),
+    avgHoursDisplay: document.getElementById('avg-hours-display'),
+    estDaysDisplay: document.getElementById('est-days-display'),
+    estEndDisplay: document.getElementById('est-end-display'),
+
     entryForm: document.getElementById('entry-form'),
     entryDate: document.getElementById('entry-date'),
     entryStart: document.getElementById('entry-start'),
@@ -42,6 +49,7 @@
     directHours: document.getElementById('direct-hours'),
     directMinutes: document.getElementById('direct-minutes'),
     directNote: document.getElementById('direct-note'),
+    btnSaveDirect: document.getElementById('btn-save-direct'),
 
     recentList: document.getElementById('recent-list'),
     historyList: document.getElementById('history-list'),
@@ -94,6 +102,30 @@
     const h = String(now.getHours()).padStart(2, '0');
     const m = String(now.getMinutes()).padStart(2, '0');
     return `${h}:${m}`;
+  }
+
+  function getStartOfWeekIso() {
+    const now = new Date();
+    const day = now.getDay(); // 0=Dom, 1=Lun...
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+    const y = monday.getFullYear();
+    const m = String(monday.getMonth() + 1).padStart(2, '0');
+    const d = String(monday.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function addBusinessDays(startDate, businessDays) {
+    const d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    let added = 0;
+    while (added < businessDays) {
+      d.setDate(d.getDate() + 1);
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) {
+        added++;
+      }
+    }
+    return d;
   }
 
   function showToast(msg) {
@@ -149,10 +181,29 @@
     btn.addEventListener('click', () => switchTab(btn.dataset.goTab));
   });
 
-  // --- Renderizado ---
-  const RING_CIRCUMFERENCE = 2 * Math.PI * 92;
+  // Selector de modo en pestaña Horas
+  document.querySelectorAll('[data-add-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-add-mode]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.addMode = btn.dataset.addMode;
 
-  function renderProgress() {
+      if (state.addMode === 'schedule') {
+        el.entryForm.classList.remove('hidden');
+        el.directForm.classList.add('hidden');
+        el.entryPreview.classList.remove('hidden');
+        updateEntryPreview();
+      } else {
+        el.entryForm.classList.add('hidden');
+        el.directForm.classList.remove('hidden');
+        el.entryPreview.classList.remove('hidden');
+        updateDirectPreview();
+      }
+    });
+  });
+
+  // --- Renderizado ---
+  function renderProgressAndInsights() {
     const goalMinutes = state.goalHours * 60;
     const pct = Math.min(100, (state.totalMinutes / goalMinutes) * 100);
     const remaining = Math.max(0, goalMinutes - state.totalMinutes);
@@ -171,6 +222,47 @@
     } else {
       el.storageText.textContent = 'Modo prueba local';
       el.storageBadge.className = 'status-dot local';
+    }
+
+    // 1. Horas esta semana (lunes a hoy)
+    const weekStartIso = getStartOfWeekIso();
+    const weekMinutes = state.entries
+      .filter((e) => e.entryDate >= weekStartIso)
+      .reduce((acc, e) => acc + e.durationMinutes, 0);
+    el.weekHoursDisplay.textContent = formatMinutes(weekMinutes);
+
+    // 2. Promedio por jornada (agrupado por fecha para no distorsionar con varios registros el mismo día)
+    const byDate = new Map();
+    state.entries.forEach((e) => {
+      byDate.set(e.entryDate, (byDate.get(e.entryDate) || 0) + e.durationMinutes);
+    });
+
+    if (byDate.size === 0) {
+      el.avgHoursDisplay.textContent = 'Sin datos';
+      el.estDaysDisplay.textContent = `${Math.ceil(remaining / 480)} días (8h)`;
+      const endDate = addBusinessDays(new Date(), Math.ceil(remaining / 480));
+      el.estEndDisplay.textContent = endDate.toLocaleDateString('es-CL', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    } else {
+      const avgMinutes = Math.round(state.totalMinutes / byDate.size);
+      el.avgHoursDisplay.textContent = formatMinutes(avgMinutes);
+
+      if (remaining === 0) {
+        el.estDaysDisplay.textContent = '¡Meta cumplida!';
+        el.estEndDisplay.textContent = 'Completado';
+      } else {
+        const daysLeft = Math.ceil(remaining / Math.max(60, avgMinutes));
+        el.estDaysDisplay.textContent = `${daysLeft} ${daysLeft === 1 ? 'jornada' : 'jornadas'}`;
+        const endDate = addBusinessDays(new Date(), daysLeft);
+        el.estEndDisplay.textContent = endDate.toLocaleDateString('es-CL', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        });
+      }
     }
   }
 
@@ -223,7 +315,7 @@
     const recent = state.entries.slice(0, 3);
     if (!recent.length) {
       el.recentList.innerHTML =
-        '<div class="empty-state">Aún no tienes jornadas registradas.</div>';
+        '<div class="empty-state">Aún no tienes horas registradas. Ve a la pestaña <strong>Horas</strong> para agregar tu primera jornada.</div>';
     } else {
       recent.forEach((e) => el.recentList.appendChild(createEntryCard(e, false)));
     }
@@ -250,7 +342,7 @@
       state.storageMode = data.storageMode;
 
       el.pinScreen.classList.add('hidden');
-      renderProgress();
+      renderProgressAndInsights();
       renderLists();
     } catch (err) {
       if (err.message !== 'PIN_REQUIRED' && !silent) {
@@ -259,7 +351,7 @@
     }
   }
 
-  // --- Registro principal por horario escrito ---
+  // --- Previews y formularios de agregar horas ---
   function updateEntryPreview() {
     const start = el.entryStart.value;
     const end = el.entryEnd.value;
@@ -283,8 +375,25 @@
     }
   }
 
+  function updateDirectPreview() {
+    const h = Math.max(0, Number(el.directHours.value) || 0);
+    const m = Math.max(0, Number(el.directMinutes.value) || 0);
+    const total = h * 60 + m;
+    if (total <= 0) {
+      el.entryPreview.textContent = '0h 00m';
+      el.entryPreview.classList.add('error');
+    } else {
+      el.entryPreview.textContent = `+ ${formatMinutes(total)}`;
+      el.entryPreview.classList.remove('error');
+    }
+  }
+
   [el.entryStart, el.entryEnd, el.entryBreak].forEach((input) => {
     input.addEventListener('input', updateEntryPreview);
+  });
+
+  [el.directHours, el.directMinutes].forEach((input) => {
+    input.addEventListener('input', updateDirectPreview);
   });
 
   el.btnNowStart.addEventListener('click', () => {
@@ -314,6 +423,7 @@
       el.entryNote.value = '';
       showToast('Jornada guardada en la nube');
       await loadState(true);
+      switchTab('home');
     } catch (err) {
       showToast(err.message);
     } finally {
@@ -321,9 +431,9 @@
     }
   });
 
-  // --- Registro de horas directas ---
   el.directForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    el.btnSaveDirect.disabled = true;
     const h = Number(el.directHours.value) || 0;
     const m = Number(el.directMinutes.value) || 0;
     try {
@@ -341,6 +451,8 @@
       switchTab('home');
     } catch (err) {
       showToast(err.message);
+    } finally {
+      el.btnSaveDirect.disabled = false;
     }
   });
 
