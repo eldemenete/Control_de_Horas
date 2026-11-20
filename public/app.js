@@ -16,11 +16,12 @@
     pinInput: document.getElementById('pin-input'),
     pinError: document.getElementById('pin-error'),
     storageBadge: document.getElementById('storage-badge'),
+    storageText: document.getElementById('storage-text'),
     btnRefresh: document.getElementById('btn-refresh'),
 
     totalHoursDisplay: document.getElementById('total-hours-display'),
     percentDisplay: document.getElementById('percent-display'),
-    progressBar: document.getElementById('progress-bar'),
+    progressRingCircle: document.getElementById('progress-ring-circle'),
     goalDisplay: document.getElementById('goal-display'),
     remainingDisplay: document.getElementById('remaining-display'),
     daysDisplay: document.getElementById('days-display'),
@@ -149,6 +150,8 @@
   });
 
   // --- Renderizado ---
+  const RING_CIRCUMFERENCE = 2 * Math.PI * 92;
+
   function renderProgress() {
     const goalMinutes = state.goalHours * 60;
     const pct = Math.min(100, (state.totalMinutes / goalMinutes) * 100);
@@ -156,17 +159,18 @@
 
     el.totalHoursDisplay.textContent = formatMinutes(state.totalMinutes);
     el.percentDisplay.textContent = `${pct.toFixed(1)}%`;
-    el.progressBar.style.width = `${pct}%`;
+    const offset = RING_CIRCUMFERENCE * (1 - pct / 100);
+    el.progressRingCircle.style.strokeDashoffset = String(offset);
     el.goalDisplay.textContent = `${state.goalHours}h`;
     el.remainingDisplay.textContent = formatMinutes(remaining);
     el.daysDisplay.textContent = String(state.entries.length);
 
     if (state.storageMode === 'postgresql') {
-      el.storageBadge.textContent = '● En la nube (PostgreSQL)';
-      el.storageBadge.className = 'badge cloud';
+      el.storageText.textContent = 'En la nube · PostgreSQL';
+      el.storageBadge.className = 'status-dot cloud';
     } else {
-      el.storageBadge.textContent = '● Modo prueba local';
-      el.storageBadge.className = 'badge local';
+      el.storageText.textContent = 'Modo prueba local';
+      el.storageBadge.className = 'status-dot local';
     }
   }
 
@@ -261,7 +265,8 @@
     const end = el.entryEnd.value;
     const brk = Math.max(0, Number(el.entryBreak.value) || 0);
     if (!start || !end) {
-      el.entryPreview.innerHTML = 'Completa hora de entrada y salida.';
+      el.entryPreview.textContent = 'Sin horario';
+      el.entryPreview.classList.add('error');
       return;
     }
     const [sh, sm] = start.split(':').map(Number);
@@ -270,9 +275,11 @@
     if (diff <= 0) diff += 24 * 60;
     const net = diff - brk;
     if (net <= 0) {
-      el.entryPreview.innerHTML = 'La colación supera la duración de la jornada.';
+      el.entryPreview.textContent = 'Colación muy alta';
+      el.entryPreview.classList.add('error');
     } else {
-      el.entryPreview.innerHTML = `Total a sumar: <strong>${formatMinutes(net)}</strong>`;
+      el.entryPreview.textContent = `+ ${formatMinutes(net)}`;
+      el.entryPreview.classList.remove('error');
     }
   }
 

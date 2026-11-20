@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b1120" />
+  <meta name="theme-color" content="#000000" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Práctica 360h" />
@@ -11,79 +11,113 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icon.svg" />
   <link rel="stylesheet" href="/styles.css" />
-  <title>Control de Horas · Práctica Profesional</title>
+  <title>Control de Horas · Práctica 360h</title>
 </head>
 <body>
   <!-- Pantalla de PIN (solo visible si el servidor tiene APP_PIN configurado) -->
   <div id="pin-screen" class="pin-overlay hidden">
     <div class="pin-card">
-      <div class="pin-icon">🔒</div>
+      <div class="pin-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+      </div>
       <h2>Acceso protegido</h2>
-      <p>Ingresa tu PIN para acceder a tu registro de horas en la nube.</p>
+      <p>Ingresa tu PIN para abrir tu control de horas.</p>
       <form id="pin-form">
         <input
           id="pin-input"
           type="password"
           inputmode="numeric"
-          placeholder="Ingresa tu PIN"
+          placeholder="••••"
           autocomplete="current-password"
           required
         />
-        <button type="submit" class="btn btn-primary btn-full">Entrar</button>
+        <button type="submit" class="btn btn-primary btn-xl btn-full">Entrar</button>
       </form>
       <p id="pin-error" class="error-text hidden"></p>
     </div>
   </div>
 
   <div class="app-shell">
-    <!-- Cabecera -->
+    <!-- Cabecera minimalista OLED -->
     <header class="app-header">
-      <div>
-        <h1>Mi Práctica</h1>
-        <span id="storage-badge" class="badge">Conectando...</span>
+      <div class="brand">
+        <h1>Práctica <span>360h</span></h1>
+        <div id="storage-badge" class="status-dot">
+          <span class="dot"></span>
+          <span id="storage-text">Conectando...</span>
+        </div>
       </div>
       <button id="btn-refresh" class="icon-btn" title="Sincronizar" aria-label="Sincronizar">
-        ↻
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+          <polyline points="21 3 21 9 15 9" />
+        </svg>
       </button>
     </header>
 
     <main class="app-main">
-      <!-- PESTAÑA 1: INICIO (Progreso + Registrar jornada escrita) -->
+      <!-- PESTAÑA 1: REGISTRAR -->
       <section id="tab-home" class="tab-panel active">
-        <!-- Tarjeta de Progreso -->
-        <article class="card progress-card">
-          <div class="progress-header">
-            <div>
-              <span class="label">Progreso total</span>
-              <div class="big-hours" id="total-hours-display">0h 00m</div>
+        <!-- Hero Card con Anillo de Progreso -->
+        <article class="card hero-card">
+          <div class="ring-container">
+            <svg class="progress-ring" viewBox="0 0 220 220" aria-hidden="true">
+              <defs>
+                <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6ee7b7" />
+                  <stop offset="50%" stop-color="#10b981" />
+                  <stop offset="100%" stop-color="#059669" />
+                </linearGradient>
+              </defs>
+              <circle class="ring-bg" cx="110" cy="110" r="92" />
+              <circle
+                class="ring-fg"
+                id="progress-ring-circle"
+                cx="110"
+                cy="110"
+                r="92"
+                stroke="url(#emeraldGrad)"
+              />
+            </svg>
+            <div class="ring-center">
+              <span class="ring-eyebrow">COMPLETADO</span>
+              <div class="ring-percent" id="percent-display">0.0%</div>
+              <div class="ring-hours" id="total-hours-display">0h 00m</div>
             </div>
-            <div class="percent-pill" id="percent-display">0%</div>
           </div>
 
-          <div class="progress-track">
-            <div class="progress-fill" id="progress-bar" style="width: 0%"></div>
-          </div>
-
-          <div class="stats-grid">
-            <div class="stat-box">
-              <span class="stat-label">Meta</span>
-              <span class="stat-value" id="goal-display">360h</span>
+          <div class="metrics-row">
+            <div class="metric-pill">
+              <span class="metric-label">Meta</span>
+              <span class="metric-value" id="goal-display">360h</span>
             </div>
-            <div class="stat-box">
-              <span class="stat-label">Faltan</span>
-              <span class="stat-value" id="remaining-display">360h 00m</span>
+            <div class="metric-pill highlight">
+              <span class="metric-label">Restantes</span>
+              <span class="metric-value" id="remaining-display">360h 00m</span>
             </div>
-            <div class="stat-box">
-              <span class="stat-label">Jornadas</span>
-              <span class="stat-value" id="days-display">0</span>
+            <div class="metric-pill">
+              <span class="metric-label">Jornadas</span>
+              <span class="metric-value" id="days-display">0</span>
             </div>
           </div>
         </article>
 
-        <!-- Tarjeta de Registrar Jornada (hora escrita) -->
+        <!-- Formulario de Jornada (hora escrita) -->
         <article class="card">
-          <div class="card-title-row">
-            <h2>Registrar jornada</h2>
+          <div class="card-header">
+            <div class="card-title-group">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="9" />
+                  <polyline points="12 7 12 12 15.5 14" />
+                </svg>
+              </span>
+              <h2>Registrar jornada</h2>
+            </div>
+            <span class="calc-chip" id="entry-preview">+ 8h 00m</span>
           </div>
 
           <form id="entry-form">
@@ -95,14 +129,14 @@
             <div class="form-row two-cols">
               <div class="field">
                 <div class="label-row">
-                  <label for="entry-start">Hora entrada</label>
+                  <label for="entry-start">Entrada</label>
                   <button type="button" class="mini-btn" id="btn-now-start">Ahora</button>
                 </div>
                 <input id="entry-start" type="time" value="09:00" required />
               </div>
               <div class="field">
                 <div class="label-row">
-                  <label for="entry-end">Hora salida</label>
+                  <label for="entry-end">Salida</label>
                   <button type="button" class="mini-btn" id="btn-now-end">Ahora</button>
                 </div>
                 <input id="entry-end" type="time" value="18:00" required />
@@ -121,31 +155,27 @@
               />
             </div>
 
-            <div class="calc-preview" id="entry-preview">
-              Total a sumar: <strong>8h 00m</strong>
-            </div>
-
             <div class="field">
-              <label for="entry-note">Actividad / nota (opcional)</label>
+              <label for="entry-note">Actividad (opcional)</label>
               <input
                 id="entry-note"
                 type="text"
                 maxlength="300"
-                placeholder="Ej: Desarrollo web, soporte técnico..."
+                placeholder="Ej: Soporte, desarrollo módulo, pruebas..."
               />
             </div>
 
             <button type="submit" id="btn-save-entry" class="btn btn-primary btn-xl btn-full">
-              + Guardar jornada
+              Guardar jornada
             </button>
           </form>
         </article>
 
-        <!-- Últimos registros rápidos -->
+        <!-- Últimas jornadas -->
         <article class="card">
-          <div class="card-title-row">
+          <div class="card-header">
             <h2>Últimas jornadas</h2>
-            <button class="link-btn" data-go-tab="history">Ver todas →</button>
+            <button class="link-btn" data-go-tab="history">Ver todas</button>
           </div>
           <div id="recent-list" class="entries-list"></div>
         </article>
@@ -154,9 +184,19 @@
       <!-- PESTAÑA 2: SUMAR HORAS DIRECTAS -->
       <section id="tab-manual" class="tab-panel">
         <article class="card">
-          <h2>Sumar horas directas</h2>
+          <div class="card-header">
+            <div class="card-title-group">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </span>
+              <h2>Sumar horas directas</h2>
+            </div>
+          </div>
           <p class="helper-text">
-            Úsalo si prefieres ingresar una cantidad fija de horas (por ejemplo, horas acumuladas de días anteriores).
+            Ideal para cargar horas acumuladas de días anteriores sin escribir hora de entrada y salida.
           </p>
 
           <form id="direct-form">
@@ -193,17 +233,17 @@
             </div>
 
             <div class="field">
-              <label for="direct-note">Descripción / notas (opcional)</label>
+              <label for="direct-note">Nota (opcional)</label>
               <input
                 id="direct-note"
                 type="text"
                 maxlength="300"
-                placeholder="Ej: Horas acumuladas semana 1..."
+                placeholder="Ej: Acumulado semana 1..."
               />
             </div>
 
             <button type="submit" class="btn btn-primary btn-xl btn-full">
-              + Guardar horas
+              Sumar horas
             </button>
           </form>
         </article>
@@ -212,8 +252,8 @@
       <!-- PESTAÑA 3: HISTORIAL -->
       <section id="tab-history" class="tab-panel">
         <article class="card">
-          <div class="card-title-row">
-            <h2>Historial de jornadas</h2>
+          <div class="card-header">
+            <h2>Historial</h2>
             <button id="btn-export-csv" class="btn btn-secondary btn-sm">
               Exportar CSV
             </button>
@@ -224,19 +264,33 @@
       </section>
     </main>
 
-    <!-- Navegación inferior estilo app móvil -->
+    <!-- Navegación inferior estilo dock OLED -->
     <nav class="bottom-nav" aria-label="Navegación principal">
       <button class="nav-item active" data-tab="home">
-        <span class="nav-icon">✎</span>
-        <span class="nav-label">Registrar</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <polyline points="12 7 12 12 15 14" />
+        </svg>
+        <span>Registrar</span>
       </button>
       <button class="nav-item" data-tab="manual">
-        <span class="nav-icon">＋</span>
-        <span class="nav-label">Horas</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <line x1="12" y1="8" x2="12" y2="16" />
+          <line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+        <span>Sumar</span>
       </button>
       <button class="nav-item" data-tab="history">
-        <span class="nav-icon">☰</span>
-        <span class="nav-label">Historial</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <circle cx="4" cy="6" r="1" fill="currentColor" />
+          <circle cx="4" cy="12" r="1" fill="currentColor" />
+          <circle cx="4" cy="18" r="1" fill="currentColor" />
+        </svg>
+        <span>Historial</span>
       </button>
     </nav>
   </div>
@@ -244,9 +298,14 @@
   <!-- Modal para editar registro -->
   <div id="edit-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
     <div class="modal-card">
-      <div class="card-title-row">
+      <div class="card-header">
         <h2>Editar jornada</h2>
-        <button id="btn-close-modal" class="icon-btn" aria-label="Cerrar">✕</button>
+        <button id="btn-close-modal" class="icon-btn" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
       <form id="edit-form">
         <input type="hidden" id="edit-id" />
@@ -256,7 +315,7 @@
         </div>
         <div class="form-row two-cols">
           <div class="field">
-            <label for="edit-hours">Horas totales</label>
+            <label for="edit-hours">Horas</label>
             <input id="edit-hours" type="number" min="0" max="360" required inputmode="numeric" />
           </div>
           <div class="field">
@@ -270,13 +329,13 @@
         </div>
         <div class="modal-actions">
           <button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Toast de notificaciones -->
+  <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
 
   <script src="/app.js"></script>
